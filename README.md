@@ -281,7 +281,3 @@ dataops-copilot/
 
 **Sahithi Mudaganti**
 GitHub: [@mudagantisahithi-sketch](https://github.com/mudagantisahithi-sketch)
-
-## 📄 License
-
-No license file is currently included in this repository, which by default means all rights are reserved. If you'd like others to freely use, modify, or contribute to this project, consider adding an [MIT License](https://choosealicense.com/licenses/mit/) or similar.
