@@ -4,15 +4,18 @@ import sys
 import shutil
 import json
 import re
+import glob
 from datetime import datetime
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 DATA_FOLDER = os.path.join(BASE_DIR, "data")
+INCOMING_FOLDER = os.path.join(BASE_DIR, "incoming")
 STATUS_FILE = os.path.join(BASE_DIR, "pipeline_status.json")
 CLEANED_FILE = os.path.join(DATA_FOLDER, "customers_cleaned.csv")
 
 os.makedirs(DATA_FOLDER, exist_ok=True)
+os.makedirs(INCOMING_FOLDER, exist_ok=True)
 
 
 def update_status(
@@ -141,26 +144,18 @@ def extract_quality(output):
     )
 
 
-def main():
+def find_incoming_csvs():
+    """Return every CSV currently sitting in incoming/, sorted oldest-first
+    so files are processed in the order they arrived."""
 
-    print("=" * 60)
-    print("          DATAOPS COPILOT")
-    print("=" * 60)
+    pattern = os.path.join(INCOMING_FOLDER, "*.csv")
+    files = glob.glob(pattern)
+    files.sort(key=os.path.getmtime)
+    return files
 
-    if len(sys.argv) < 2:
 
-        print("ERROR: No incoming CSV file provided.")
-
-        update_status(
-            "ERROR",
-            "ERROR",
-            "No incoming CSV file provided",
-            error="Missing input file"
-        )
-
-        return
-
-    incoming_file = sys.argv[1]
+def process_file(incoming_file):
+    """Run the full check -> repair -> re-check pipeline for one CSV."""
 
     print()
     print("Incoming file:")
@@ -381,6 +376,39 @@ def main():
         print("          COPILOT RUN COMPLETE")
         print("=" * 60)
         print("Pipeline finished with quality issues.")
+
+
+def main():
+
+    print("=" * 60)
+    print("          DATAOPS COPILOT")
+    print("=" * 60)
+
+    # If a specific file is passed on the command line, use it as before.
+    # Otherwise, automatically discover whatever CSV(s) are sitting in
+    # incoming/ instead of requiring a hardcoded filename.
+    if len(sys.argv) >= 2:
+        files_to_process = [sys.argv[1]]
+    else:
+        files_to_process = find_incoming_csvs()
+
+        if not files_to_process:
+            print()
+            print(f"No CSV files found in: {INCOMING_FOLDER}")
+            print("Drop a CSV into the incoming/ folder, or pass a file path directly:")
+            print("  python copilot.py path/to/file.csv")
+
+            update_status(
+                "WAITING",
+                "IDLE",
+                "No CSV files found in incoming/",
+                error=None
+            )
+
+            return
+
+    for incoming_file in files_to_process:
+        process_file(incoming_file)
 
 
 if __name__ == "__main__":
