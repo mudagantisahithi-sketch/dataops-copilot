@@ -266,7 +266,9 @@ def main():
 
         fix_command = (
             f'"{sys.executable}" '
-            f'"{os.path.join(BASE_DIR, "fix_data.py")}"'
+            f'"{os.path.join(BASE_DIR, "fix_data.py")}" '
+            f'"{input_file}" '
+            f'"{CLEANED_FILE}"'
         )
 
         fix_result = run_command(
