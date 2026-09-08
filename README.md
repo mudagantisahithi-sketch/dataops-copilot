@@ -1,6 +1,5 @@
 📊 DataOps Copilot
 Real-Time Data Quality Monitoring & Automatic Data Repair
-
 DataOps Copilot is an automated data-quality pipeline that detects common problems in incoming CSV datasets, repairs supported issues, validates the cleaned data, and reports the final quality status.
 
 🚀 Live Demo: https://dataops-copilot.streamlit.app/
@@ -8,14 +7,12 @@ DataOps Copilot is an automated data-quality pipeline that detects common proble
 💻 GitHub: https://github.com/mudagantisahithi-sketch/dataops-copilot
 
 🎯 Project Overview
-
 Modern data pipelines frequently receive datasets containing quality problems such as:
 
 Missing customer IDs
 Duplicate customer IDs
 Missing email addresses
 Other schema and data-quality issues
-
 Manually detecting and fixing these problems can delay downstream processing.
 
 DataOps Copilot automates the workflow:
@@ -24,7 +21,6 @@ Detect → Diagnose → Repair → Validate → Report
 
 ✨ Key Features
 🔍 Automated Data Quality Checks
-
 The pipeline validates:
 
 Customer ID completeness
@@ -32,7 +28,6 @@ Duplicate customer IDs
 Missing email addresses
 Overall quality score
 🤖 Automatic Data Repair
-
 When supported data-quality issues are detected, the repair engine automatically processes the dataset.
 
 Example:
@@ -48,7 +43,6 @@ Final validation
 100% Quality Score
 
 ⚡ Real-Time File Monitoring
-
 The local real-time monitor continuously watches the incoming/ directory.
 
 When a new CSV file arrives:
@@ -66,14 +60,11 @@ Automatic Repair
 Final Quality Check
    ↓
 Pipeline Status
-
-
 The latest pipeline state is written to:
 
 pipeline_status.json
 
 📊 Interactive Dashboard
-
 The Streamlit dashboard provides:
 
 CSV dataset upload
@@ -174,7 +165,6 @@ cd dataops-copilot
 python -m venv .venv
 
 3. Activate the environment
-
 Windows PowerShell:
 
 .\.venv\Scripts\Activate.ps1
@@ -183,11 +173,9 @@ Windows PowerShell:
 pip install -r requirements.txt
 
 ▶️ Run the DataOps Pipeline
-
 Run the pipeline directly against a CSV:
 
 python .\copilot.py .\incoming\customers_bad_nulls.csv
-
 
 The pipeline performs:
 
@@ -197,11 +185,9 @@ Automatic repair
 Final quality check
 Status reporting
 ⚡ Run Real-Time Monitoring
-
 Start the real-time monitor:
 
 python .\realtime_monitor.py
-
 
 You should see:
 
@@ -212,30 +198,24 @@ Watching folder: incoming
 Drop a CSV file into the incoming folder.
 The pipeline will automatically process new files.
 
-
 Now place a new CSV file inside:
 
 incoming/
 
-
 The monitor detects the new file and automatically starts the pipeline.
 
 📊 Run the Dashboard
-
 Start Streamlit:
 
 streamlit run dashboard.py
-
 
 Open:
 
 http://localhost:8501
 
-
 The dashboard provides a visual interface for uploading datasets and viewing their quality results.
 
 🧪 Example Result
-
 A test dataset containing 1,000 rows and 100 missing customer IDs produced:
 
 Initial Quality Score: 66.67%
@@ -245,7 +225,6 @@ Duplicate Customer IDs: 0
 Missing Emails: 0
 
 STATUS: FAILED
-
 
 The automatic repair engine then processed the dataset.
 
@@ -259,7 +238,6 @@ Emails: PASS
 
 STATUS: PASSED
 
-
 This demonstrates the complete:
 
 Detection
@@ -272,11 +250,9 @@ Validation
     ↓
 Reporting
 
-
 workflow.
 
 🔄 Real-Time Workflow
-
 The real-time pipeline continuously monitors the incoming directory.
 
 incoming/
@@ -297,11 +273,9 @@ Status recorded
     ↓
 Dashboard updated
 
-
 Pipeline state is stored in:
 
 pipeline_status.json
-
 
 Example:
 
@@ -315,7 +289,6 @@ Example:
 }
 
 🌐 Live Application
-
 Try the deployed Streamlit application:
 
 https://dataops-copilot.streamlit.app/
@@ -323,7 +296,6 @@ https://dataops-copilot.streamlit.app/
 The application provides a browser-based interface for uploading CSV datasets and viewing data-quality results.
 
 🎥 Demonstration
-
 The project demonstrates:
 
 Opening the DataOps Copilot dashboard
@@ -334,7 +306,6 @@ Automatically repairing the dataset
 Running final validation
 Displaying the final 100% quality score
 🔮 Future Improvements
-
 Potential production enhancements include:
 
 Apache Kafka event streaming
@@ -349,7 +320,6 @@ Authentication and role-based access
 Production monitoring and logging
 Cloud-native deployment
 🎯 Project Goal
-
 The goal of DataOps Copilot is to demonstrate how automated data-quality validation and repair can be integrated into a real-time data pipeline.
 
 Instead of manually inspecting every dataset, the system automatically:
@@ -358,10 +328,4 @@ Detects → Diagnoses → Repairs → Validates → Reports
 
 👩‍💻 Author
 Sahithi Mudaganti
-
-GitHub:
-https://github.com/mudagantisahithi-sketch
-
-📄 License
-
-This project is intended for educational, demonstration, and portfolio purposes.
+GitHub: https://github.com/mudagantisahithi-sketch
