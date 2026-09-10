@@ -57,7 +57,7 @@ def test_healthy_dataset():
             "b@example.com",
             "c@example.com",
         ],
-        "created_at": pd.Timestamp.now(tz="UTC"),
+        "signup_date": pd.Timestamp.now(tz="UTC"),
     })
 
     results = run_quality_checks(df)
