@@ -1,0 +1,106 @@
+sources:
+  bigquery:
+    kind: bigquery
+    project: project-0212c7fc-1c9b-45a7-abc
+
+tools:
+  get_customer_row_count:
+    kind: bigquery-sql
+    source: bigquery
+    description: Get the total number of records in the customer incident table.
+    statement: |
+      SELECT COUNT(*) AS row_count
+      FROM `project-0212c7fc-1c9b-45a7-abc.dataops_raw.customers_incident`
+
+  get_customer_null_ids:
+    kind: bigquery-sql
+    source: bigquery
+    description: Count records with NULL customer_id in the customer incident table.
+    statement: |
+      SELECT COUNT(*) AS null_customer_ids
+      FROM `project-0212c7fc-1c9b-45a7-abc.dataops_raw.customers_incident`
+      WHERE customer_id IS NULL
+
+  get_customer_duplicates:
+    kind: bigquery-sql
+    source: bigquery
+    description: Count the number of rows that belong to duplicate customer_id groups.
+    statement: |
+      SELECT COUNT(*) AS duplicate_rows
+      FROM (
+        SELECT customer_id
+        FROM `project-0212c7fc-1c9b-45a7-abc.dataops_raw.customers_incident`
+        WHERE customer_id IS NOT NULL
+        GROUP BY customer_id
+        HAVING COUNT(*) > 1
+      )
+
+  get_customer_schema:
+    kind: bigquery-sql
+    source: bigquery
+    description: Inspect the schema of the customer incident table and identify schema drift.
+    statement: |
+      SELECT
+        column_name,
+        data_type,
+        is_nullable
+      FROM `project-0212c7fc-1c9b-45a7-abc.dataops_raw.INFORMATION_SCHEMA.COLUMNS`
+      WHERE table_name = 'customers_incident'
+      ORDER BY ordinal_position
+
+  get_invalid_customer_emails:
+    kind: bigquery-sql
+    source: bigquery
+    description: Count customer records with NULL or malformed email addresses.
+    statement: |
+      SELECT COUNT(*) AS invalid_emails
+      FROM `project-0212c7fc-1c9b-45a7-abc.dataops_raw.customers_incident`
+      WHERE email IS NULL
+         OR STRPOS(email, '@') = 0
+  quarantine_invalid_customers:
+    kind: bigquery-sql
+    source: bigquery
+    description: Quarantine customer records with NULL customer IDs or invalid email addresses.
+    statement: |
+      CREATE OR REPLACE TABLE
+      `project-0212c7fc-1c9b-45a7-abc.dataops_raw.customers_bad_records` AS
+      SELECT *
+      FROM `project-0212c7fc-1c9b-45a7-abc.dataops_raw.customers_incident`
+      WHERE customer_id IS NULL
+         OR email IS NULL
+         OR STRPOS(email, '@') = 0;
+
+      SELECT COUNT(*) AS quarantined_rows
+      FROM `project-0212c7fc-1c9b-45a7-abc.dataops_raw.customers_bad_records`
+
+  create_customers_cleaned:
+    kind: bigquery-sql
+    source: bigquery
+    description: Create a cleaned customer table by removing NULL IDs, invalid emails, and duplicate customer IDs.
+    statement: |
+      CREATE OR REPLACE TABLE
+      `project-0212c7fc-1c9b-45a7-abc.dataops_raw.customers_cleaned` AS
+      SELECT *
+      FROM `project-0212c7fc-1c9b-45a7-abc.dataops_raw.customers_incident`
+      WHERE customer_id IS NOT NULL
+        AND email IS NOT NULL
+        AND STRPOS(email, '@') > 0
+      QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY customer_id
+        ORDER BY ingested_at DESC
+      ) = 1;
+
+      SELECT COUNT(*) AS cleaned_rows
+      FROM `project-0212c7fc-1c9b-45a7-abc.dataops_raw.customers_cleaned`
+
+  verify_customer_quality:
+    kind: bigquery-sql
+    source: bigquery
+    description: Verify the cleaned customer table has no NULL IDs, duplicate IDs, or invalid emails.
+    statement: |
+      SELECT
+        COUNT(*) AS total_rows,
+        COUNTIF(customer_id IS NULL) AS null_customer_ids,
+        COUNTIF(email IS NULL OR STRPOS(email, '@') = 0) AS invalid_emails,
+        COUNT(*) - COUNT(DISTINCT customer_id) AS duplicate_rows
+      FROM `project-0212c7fc-1c9b-45a7-abc.dataops_raw.customers_cleaned`

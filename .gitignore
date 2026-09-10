@@ -1,20 +1,45 @@
+@"
+# Python
 .venv/
 __pycache__/
-*.pyc
+*.py[cod]
 
-incoming/*.csv
-data/*.csv
-
-pipeline_status.json
-realtime_status.json
-
-reports/
-
+# Secrets
 .env
+.env.*
+!.env.example
+
+# ADK local state
+.adk/
+**/.adk/
+
+# Temporary files
+tmp/
+agent/tmp/
+
+# Credentials
+credentials/
+*-credentials.json
+service-account*.json
 *.key
 *.pem
 *.p12
-service-account*.json
-credentials*.json
 
-.streamlit/secrets.toml
+# Logs
+*.log
+
+# Local/editor files
+.vscode/
+.idea/
+.DS_Store
+
+# Local MCP Toolbox binary
+toolbox.exe
+
+# Generated/runtime data
+data/*.csv
+incoming/*.csv
+reports/*.json
+pipeline_status.json
+realtime_status.json
+"@ | Set-Content .gitignore -Encoding utf8
