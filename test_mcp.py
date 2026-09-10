@@ -5,15 +5,12 @@ from agent.agent import toolbox
 
 async def main():
     print("Connecting to MCP Toolbox...")
-    
     tools = await toolbox.get_tools()
 
-    print()
-    print("DISCOVERED TOOLS")
-    print("================")
-
+    print(f"Found {len(tools)} MCP tools:")
     for tool in tools:
-        print("-", tool.name)
+        print(f"- {tool.name}")
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
