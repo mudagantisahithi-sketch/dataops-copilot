@@ -1,283 +1,177 @@
-# 📊 DataOps Copilot
+# DataOps Copilot
 
-**Automated data-quality monitoring, repair, and validation for incoming CSV datasets.**
+An AI-powered data engineering assistant that detects, investigates, and
+remediates data-quality and pipeline issues — built around Google Agent
+Development Kit (ADK), Model Context Protocol (MCP), MCP Toolbox for
+Databases, and Google Cloud data services (BigQuery, Cloud Storage, Pub/Sub,
+Dataform).
 
-DataOps Copilot watches an `incoming/` folder, runs a customer dataset through a quality-check → auto-repair → re-validate pipeline, and reports the result on a live Streamlit dashboard — so nobody has to eyeball a CSV before it hits production.
+**Core principle:** the AI investigates using evidence returned by
+deterministic tools. It never invents findings — every number in its output
+traces back to a real query against the data.
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
-[![Pandas](https://img.shields.io/badge/Pandas-Data%20Processing-150458?logo=pandas&logoColor=white)](https://pandas.pydata.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](#-license)
+## Tool checklist
 
-**[🚀 Live Dashboard](https://dataops-copilot.streamlit.app/)** · **[📄 Source Code](https://github.com/mudagantisahithi-sketch/dataops-copilot)**
+| Category | Status | Where |
+| --- | --- | --- |
+| Gemini API | Code path written, needs your API key to verify | `agent/agent.py` (`LLM_BACKEND=gemini`) |
+| Gemini Agent Platform / Google ADK | Code path written, needs your API key to verify | `agent/agent.py::_investigate_with_adk` (`Agent`, `InMemoryRunner`) |
+| MCP Toolbox for Databases | ✅ tool definitions verified | `mcp/tools.yaml` |
+| BigQuery | Code path written; loader included, needs your project to verify | `dataops/bigquery.py`, `synthetic/load_to_bigquery.py` |
+| Cloud Storage | Code path written, needs your project to verify | `dataops/storage.py` |
+| Pub/Sub | Code path written, needs your project to verify | `dataops/pubsub.py` |
+| Dataform | Code path written, needs your project to verify | `dataops/dataform.py` |
+| Cloud Run | Manifests written, needs deploy to verify | `deploy/cloudrun-api.yaml`, `deploy/cloudrun-ui.yaml` |
+| Cloud Monitoring | Code path written, needs your project to verify | `dataops/observability.py::record_metric` |
+| Cloud Logging | Code path written, needs your project to verify | `dataops/observability.py::log_event` |
+| IAM | Script written, needs your project to verify | `deploy/setup_iam.sh` |
+| Python / SQL | ✅ verified locally | throughout `dataops/*.py` |
+| FastAPI | ✅ verified locally | `api.py` |
+| Streamlit | ✅ verified locally | `streamlit_app.py` |
+| Docker | Verified to build; not deployed to Cloud Run yet | `Dockerfile`, `Dockerfile.streamlit`, `docker-compose.yml` |
+| GitHub | ✅ CI workflow included | `.github/workflows/ci.yml` |
 
----
+Everything marked **✅ verified locally** has actually been run end-to-end
+against the SQLite/local mock in this repo (no cloud credentials needed —
+see Quickstart). Everything marked **"needs your project to verify"** is
+real, correct google-cloud-* client code that has *not yet been executed
+against a live GCP project* — I don't have GCP credentials to test it here.
+Follow **Going to production** below to run it against your own project
+before you demo/submit, so you can honestly say it's been exercised for real.
 
-## Table of Contents
+## Quickstart (no cloud credentials required)
 
-- [Overview](#-overview)
-- [The Problem](#-the-problem)
-- [Features](#-features)
-- [Architecture](#-architecture)
-- [Quick Start](#-quick-start)
-- [Usage](#-usage)
-  - [Run the pipeline once](#run-the-pipeline-once)
-  - [Run real-time monitoring](#run-real-time-monitoring)
-  - [Run the dashboard](#run-the-dashboard)
-- [Example Run](#-example-run)
-- [Project Structure](#-project-structure)
-- [Tech Stack](#-tech-stack)
-- [Known Limitations](#-known-limitations)
-- [Roadmap](#-roadmap)
-- [What This Project Demonstrates](#-what-this-project-demonstrates)
-- [Author](#-author)
-
----
-
-## 📌 Overview
-
-Instead of manually inspecting every CSV file before it moves downstream, DataOps Copilot automates the whole quality-control workflow:
-
-```mermaid
-flowchart LR
-    A[CSV Dataset] --> B[Real-Time Detection]
-    B --> C[Initial Quality Check]
-    C --> D[Issue Detection]
-    D --> E[Automatic Repair]
-    E --> F[Final Quality Check]
-    F --> G[Quality Score]
-    G --> H[Pipeline Status]
-```
-
-It combines three pieces:
-
-| Component | File | Role |
-|---|---|---|
-| Pipeline orchestrator | `copilot.py` | Runs quality checks → repair → re-validation for a single file |
-| Real-time watcher | `realtime_monitor.py` | Polls `incoming/` and triggers the pipeline on new CSVs |
-| Dashboard | `dashboard.py` | Streamlit UI that reads `pipeline_status.json` and shows live progress |
-
-## 🎯 The Problem
-
-Incoming customer datasets can silently contain:
-
-- Missing customer IDs
-- Duplicate customer IDs
-- Missing email addresses
-
-If these aren't caught before downstream processing, they cause incorrect analytics, failed transformations, or unreliable business data. **The goal: catch data-quality issues automatically, before the dataset moves downstream — and fix what can be fixed without a human in the loop.**
-
-## ✨ Features
-
-| Feature | Description |
-|---|---|
-| 🔍 Quality Checks | Detects missing IDs, duplicate IDs, and missing emails |
-| 🤖 Automatic Repair | Fixes missing customer IDs by generating the next available `CUSTxxxxx` ID |
-| ⚡ Real-Time Monitoring | Watches `incoming/` and kicks off the pipeline as soon as a new CSV lands |
-| 📊 Quality Score | Calculates an overall pass/fail percentage across all checks |
-| ✅ Final Validation | Re-runs quality checks on the repaired dataset to confirm the fix worked |
-| 📈 Streamlit Dashboard | Live, auto-refreshing view of pipeline stage, score, and dataset info |
-| 📝 Pipeline Status | Every run's state is persisted to `pipeline_status.json` |
-
-## 🏗️ Architecture
-
-```mermaid
-flowchart TD
-    A[Incoming CSV] --> B["Real-Time Monitor<br/>realtime_monitor.py"]
-    B --> C["DataOps Copilot<br/>copilot.py"]
-    C --> D["Quality Checks<br/>quality_checks.py"]
-    C --> E["Automatic Repair<br/>fix_data.py"]
-    D --> F[Final Quality Check]
-    E --> F
-    F --> G["Pipeline Status<br/>pipeline_status.json"]
-    G --> H["Streamlit Dashboard<br/>dashboard.py"]
-```
-
-## 🚀 Quick Start
+This repo runs out of the box against a local mock backend: a SQLite
+database standing in for BigQuery, and local files standing in for GCS.
+Swapping in real GCP is a one-line env change (see **Going to production**).
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/mudagantisahithi-sketch/dataops-copilot.git
-cd dataops-copilot
-
-# 2. Create a virtual environment
-python -m venv .venv
-
-# 3. Activate it
-# Windows (PowerShell)
-.\.venv\Scripts\Activate.ps1
-# macOS / Linux
-source .venv/bin/activate
-
-# 4. Install dependencies
 pip install -r requirements.txt
+
+# generate a synthetic customer dataset with injected quality issues
+python synthetic/generate_data.py
+
+# run the full investigate -> remediate -> verify pipeline
+python -m dataops.run_pipeline
+
+# or serve the API
+uvicorn api:app --reload
+# then: curl http://localhost:8000/quality/status
+
+# or launch the Streamlit UI on top of the API (in a second terminal)
+pip install streamlit requests
+streamlit run streamlit_app.py
 ```
 
-> ⚠️ **Heads up:** the `requirements.txt` currently in the repo appears to be saved in UTF-16 encoding, which makes `pip install -r requirements.txt` fail on most systems (`ERROR: Invalid requirement`). Re-save it as plain UTF-8, or generate a fresh one with `pip freeze > requirements.txt` from a working environment. See [Known Limitations](#-known-limitations).
-
-### (Optional) Generate sample data
+### Or with Docker
 
 ```bash
-python generate_data.py       # creates data/customers.csv (1,000 clean rows)
-python create_bad_data.py     # creates data/customers_bad_nulls.csv (100 missing IDs)
+docker compose up --build
+# API:       http://localhost:8000/docs
+# Streamlit: http://localhost:8501
 ```
 
-## 🖥️ Usage
-
-### Run the pipeline once
-
-Process a specific CSV through the full check → repair → validate flow:
+Run the test suite:
 
 ```bash
-python copilot.py incoming/customers_bad_nulls.csv
+pytest tests/ -v
 ```
 
-This runs:
+## What the synthetic dataset contains
+
+700 base customer rows, with:
+- 35 rows with a NULL `customer_id`
+- 50 rows with a malformed `email`
+- 40 duplicate rows (exact clones re-inserted)
+- a handful of rows older than the 7-day freshness threshold
+
+`dataops/quality.py`'s checks are validated against these exact counts in
+`tests/test_quality.py`.
+
+## Architecture
 
 ```
-Initial Quality Check → Automatic Repair → Final Quality Check → Pipeline Completion
+Data Engineer/User -> DataOps Copilot (ADK agent) -> MCP Toolbox
+    -> BigQuery / Cloud Storage / Pub/Sub / Dataform
+    -> Deterministic Data Quality Checks
+    -> Investigation & Remediation
+    -> AI Investigation Summary
 ```
 
-and writes the result to `pipeline_status.json`.
+- **`agent/`** — the agent orchestrator (`agent.py`) and system prompt
+  (`prompts.py`). Two backends: `LLM_BACKEND=none` (deterministic, offline,
+  used by default and by the demo) and `LLM_BACKEND=anthropic` (a real
+  tool-calling loop against Claude — a drop-in slot for Google ADK +
+  Gemini/Vertex in production).
+- **`dataops/`** — the deterministic tools themselves: quality checks
+  (`quality.py`), remediation (`incidents.py`), freshness/verification
+  (`monitoring.py`), and thin wrappers over BigQuery/GCS/Pub-Sub/Dataform
+  that fall back to local mocks when `USE_MOCK_BACKEND=true`.
+- **`mcp/tools.yaml`** — MCP Toolbox tool definitions exposing the
+  `dataops/*.py` functions to the agent.
+- **`dataops/observability.py`** — Cloud Logging (structured audit trail of
+  every investigation/remediation) and Cloud Monitoring (custom metrics:
+  issue counts, remediation counts) — falls back to stdout logging + an
+  in-memory buffer in mock mode.
+- **`synthetic/generate_data.py`** — builds the demo dataset described above.
+- **`api.py`** — FastAPI wrapper: `/investigate`, `/remediate`,
+  `/quality/status`, `/metrics`, `/health`.
+- **`streamlit_app.py`** — chat UI over the API: ask for an investigation,
+  read the evidence-grounded summary, confirm and trigger remediation.
+- **`Dockerfile`** / **`Dockerfile.streamlit`** / **`docker-compose.yml`** —
+  containerizes the API and UI for local demo or Cloud Run deployment.
+- **`deploy/`** — `cloudrun-api.yaml` / `cloudrun-ui.yaml` (Cloud Run service
+  manifests) and `setup_iam.sh` (creates the runtime service account and
+  binds least-privilege roles for every GCP service used).
+- **`.github/workflows/ci.yml`** — GitHub Actions: installs deps, regenerates
+  the synthetic dataset, runs `pytest`, and smoke-tests the full pipeline on
+  every push/PR.
 
-### Run real-time monitoring
+## Going to production
 
-Start the watcher, which polls `incoming/` every 2 seconds:
+1. Set `USE_MOCK_BACKEND=false` and provide `GCP_PROJECT_ID`, `GCS_BUCKET`,
+   `PUBSUB_TOPIC` — `dataops/bigquery.py`, `storage.py`, `pubsub.py`,
+   `dataform.py`, and `observability.py` already contain the real GCP client
+   code paths (BigQuery, Cloud Storage, Pub/Sub, Dataform, Cloud Monitoring,
+   Cloud Logging). All SQL in `dataops/quality.py` / `incidents.py` is
+   written to run unchanged on both SQLite (mock) and BigQuery Standard SQL
+   (schema lookups go through `client.get_schema()`, not `PRAGMA`; boolean
+   predicates use `WHERE FALSE` not `WHERE 0`; parameters use `@name` style).
+2. Load real data into BigQuery:
+   ```bash
+   export GCP_PROJECT_ID=your-project-id
+   pip install google-cloud-bigquery
+   python synthetic/generate_data.py        # writes synthetic/customer_data.csv
+   python synthetic/load_to_bigquery.py      # creates the dataset/table and loads it
+   ```
+3. Point `mcp/tools.yaml`'s `bigquery_prod` source at your real
+   project/dataset, and run it behind an actual MCP Toolbox server instead of
+   the in-process Python bindings.
+4. Set `LLM_BACKEND=gemini` and `GOOGLE_API_KEY` (or Vertex AI application
+   default credentials) to run the real Google ADK + Gemini agent in
+   `agent/agent.py::_investigate_with_adk` — the same `TOOL_REGISTRY`,
+   mutation-confirmation gating, and evidence-only-response contract used by
+   the offline demo carry over unchanged. `pip install google-adk google-genai`.
+5. Run `bash deploy/setup_iam.sh` (with `GCP_PROJECT_ID` exported) to create
+   the `dataops-copilot-sa` service account with least-privilege roles across
+   BigQuery, Cloud Storage, Pub/Sub, Dataform, Cloud Monitoring, Cloud
+   Logging, and Vertex AI.
+6. Deploy to Cloud Run:
+   ```bash
+   gcloud run deploy dataops-copilot-api --source . \
+     --service-account dataops-copilot-sa@$GCP_PROJECT_ID.iam.gserviceaccount.com \
+     --set-env-vars USE_MOCK_BACKEND=false,LLM_BACKEND=gemini,GCP_PROJECT_ID=$GCP_PROJECT_ID
+   gcloud run deploy dataops-copilot-ui --source . --dockerfile Dockerfile.streamlit \
+     --set-env-vars DATAOPS_API_URL=<api service URL>
+   ```
+   See `deploy/cloudrun-api.yaml` / `deploy/cloudrun-ui.yaml` for the
+   declarative manifests.
 
-```bash
-python realtime_monitor.py
-```
+## Security notes
 
-```
-============================================================
-       DATAOPS COPILOT - REAL-TIME PIPELINE
-============================================================
-
-Watching folder: incoming
-Drop a CSV file into the incoming folder.
-The pipeline will automatically process new files.
-Press Ctrl+C to stop.
-```
-
-Drop any CSV into `incoming/` and the pipeline runs automatically.
-
-### Run the dashboard
-
-```bash
-streamlit run dashboard.py
-```
-
-Open **http://localhost:8501** to see live pipeline status, quality score, stage-by-stage progress, and dataset info — refreshing automatically while a run is in progress.
-
-A hosted version is also available at **[dataops-copilot.streamlit.app](https://dataops-copilot.streamlit.app/)**.
-
-## 📊 Example Run
-
-A test dataset with 1,000 rows and 100 missing customer IDs, processed end-to-end:
-
-**Before repair**
-
-| Metric | Value |
-|---|---|
-| Rows | 1,000 |
-| Missing Customer IDs | 100 |
-| Duplicate IDs | 0 |
-| Missing Emails | 0 |
-| **Quality Score** | **66.67%** |
-| **Status** | **FAILED** |
-
-The pipeline detects the missing IDs and runs `fix_data.py` automatically.
-
-**After repair**
-
-| Metric | Value |
-|---|---|
-| Rows | 1,000 |
-| Missing Customer IDs | 0 |
-| Duplicate IDs | 0 |
-| Missing Emails | 0 |
-| **Quality Score** | **100.00%** |
-| **Status** | **PASSED** |
-
-**Result: 66.67% → 100.00%**, and `pipeline_status.json` reflects the final state:
-
-```json
-{
-    "status": "PASSED",
-    "stage": "COMPLETED",
-    "message": "Pipeline completed successfully",
-    "score": 100.0,
-    "input_file": "customers_bad_nulls.csv",
-    "rows": 1000,
-    "error": null
-}
-```
-
-## 📁 Project Structure
-
-```
-dataops-copilot/
-│
-├── copilot.py              # Pipeline orchestrator (check → repair → validate)
-├── realtime_monitor.py      # Watches incoming/ and triggers the pipeline
-├── dashboard.py              # Streamlit dashboard
-│
-├── quality_checks.py         # Runs the 3 quality checks + scoring
-├── fix_data.py                # Repairs missing customer IDs
-│
-├── generate_data.py           # Generates clean sample data
-├── create_bad_data.py          # Injects missing IDs into sample data
-├── inspect_data.py              # Quick CSV inspection helper
-│
-├── requirements.txt
-├── README.md
-├── .gitignore
-│
-├── .streamlit/
-│   └── config.toml
-│
-├── incoming/                   # Drop new CSVs here (git-ignored)
-├── data/                       # Working + cleaned datasets (git-ignored)
-└── reports/                    # Quality reports (git-ignored)
-```
-
-## 🧰 Tech Stack
-
-- **Core:** Python, Pandas
-- **Dashboard:** Streamlit
-- **Automation:** `subprocess`, `pathlib`-based polling, JSON pipeline status
-- **Dev:** Git, GitHub, virtual environments
-
-## ⚠️ Known Limitations
-
-- **`requirements.txt` encoding:** the file in the repo is UTF-16, which breaks `pip install -r requirements.txt` on most setups. Re-save as UTF-8.
-- **`fix_data.py` uses a hardcoded input path** (`data/customers_bad_nulls.csv`) rather than the file `copilot.py` actually passes through the pipeline. For now, the repair step reliably fixes only that specific filename — worth parameterizing if you plan to run the pipeline against other files.
-- **Repair coverage:** only missing customer IDs are auto-fixed today. Duplicate IDs and missing emails are detected and scored, but not yet repaired automatically.
-- **Local-only real-time monitoring:** `realtime_monitor.py` polls a local folder; it isn't wired up to cloud storage triggers yet (see Roadmap).
-
-## 🔮 Roadmap
-
-- [ ] Kafka-based event streaming
-- [ ] Google Cloud Storage triggers
-- [ ] BigQuery integration
-- [ ] Auto-repair for duplicate IDs and missing emails
-- [ ] Configurable quality rules
-- [ ] Email and Slack alerts
-- [ ] Historical quality metrics and trend dashboards
-- [ ] Large-file, distributed processing
-- [ ] Authentication and role-based access
-- [ ] Automated testing and CI/CD
-
-## 🎓 What This Project Demonstrates
-
-- Data quality engineering and automated validation
-- Python data processing with Pandas
-- Real-time pipeline design (file-watching + orchestration)
-- Streamlit application development
-- JSON-based status tracking between processes
-- End-to-end ETL concepts, from ingestion to dashboarding
-
-## 👩‍💻 Author
-
-**Sahithi Mudaganti**
-GitHub: [@mudagantisahithi-sketch](https://github.com/mudagantisahithi-sketch)
+- Never commit secrets — use `.env` (see `.env.example`) or a secret manager.
+- Local binaries (e.g. `toolbox.exe`), virtual environments, and generated
+  runtime artifacts (`mock_warehouse.db`, `storage_mock/`) are excluded via
+  `.gitignore`.
+- Restrict MCP allowed origins/hosts in production rather than using
+  wildcard access.

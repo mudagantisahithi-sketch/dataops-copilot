@@ -1,20 +1,15 @@
-.venv/
+.env
 __pycache__/
 *.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
 
-incoming/*.csv
-data/*.csv
-
-pipeline_status.json
-realtime_status.json
-
-reports/
-
-.env
-*.key
-*.pem
-*.p12
-service-account*.json
-credentials*.json
-
-.streamlit/secrets.toml
+# Generated/runtime artifacts
+mock_warehouse.db
+storage_mock/
+synthetic/customer_data.csv
+toolbox.exe
+*.log
+.DS_Store

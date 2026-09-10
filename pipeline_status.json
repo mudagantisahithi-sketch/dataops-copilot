@@ -1,0 +1,10 @@
+{
+    "status": "PASSED",
+    "stage": "COMPLETED",
+    "message": "Pipeline completed successfully",
+    "score": 100.0,
+    "input_file": "demo_test.csv",
+    "rows": 1000,
+    "error": null,
+    "updated_at": "2026-09-09T01:39:52.747779"
+}

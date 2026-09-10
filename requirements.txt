@@ -1,2 +1,25 @@
-pandas==3.0.5
-streamlit==1.63.0
+# Core - required for local/mock mode (no GCP or LLM credentials needed)
+fastapi==0.115.0
+uvicorn==0.30.6
+pydantic==2.9.2
+pytest==8.3.3
+pandas==2.2.2
+
+# Optional - Streamlit UI (streamlit_app.py)
+# streamlit==1.38.0
+# requests==2.32.3
+
+# Optional - only needed when USE_MOCK_BACKEND=false
+# google-cloud-bigquery==3.25.0
+# google-cloud-storage==2.18.2
+# google-cloud-pubsub==2.23.1
+# google-cloud-dataform==0.7.0
+# google-cloud-logging==3.11.0
+# google-cloud-monitoring==2.22.0
+
+# Optional - only needed when LLM_BACKEND=gemini (production path: Google ADK + Gemini)
+# google-adk
+# google-genai
+
+# Optional - only needed when LLM_BACKEND=anthropic (secondary local dev path)
+# anthropic==0.34.2
